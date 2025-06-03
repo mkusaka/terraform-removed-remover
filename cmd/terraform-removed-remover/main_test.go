@@ -16,6 +16,7 @@ func TestFindTerraformFiles(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -65,6 +66,7 @@ func TestProcessFile(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -185,6 +187,7 @@ func TestMainFunction(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -247,6 +250,7 @@ func TestFlagHandling(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -299,6 +303,7 @@ func TestConsecutiveRemovedBlocks(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -386,6 +391,7 @@ func TestWhitespaceNormalizationFlag(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -513,6 +519,7 @@ func TestTrailingEmptyLines(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 

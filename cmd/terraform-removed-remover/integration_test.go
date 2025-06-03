@@ -1,3 +1,4 @@
+// Package main provides integration tests for the terraform-removed-remover tool
 package main
 
 import (
@@ -15,6 +16,7 @@ func TestIntegrationBasicUsage(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -133,6 +135,7 @@ func TestIntegrationDryRun(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -193,6 +196,7 @@ func TestIntegrationEmptyDirectory(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 
@@ -231,6 +235,7 @@ func TestIntegrationNoRemovedBlocks(t *testing.T) {
 	}
 	defer func() {
 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
 		}
 	}()
 

@@ -13,8 +13,10 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
+// Version represents the current version of the terraform-removed-remover tool
 const Version = "0.0.1"
 
+// Stats holds statistics about the processing operation
 type Stats struct {
 	FilesProcessed       int
 	FilesModified        int

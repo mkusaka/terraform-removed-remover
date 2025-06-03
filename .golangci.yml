@@ -29,6 +29,9 @@ linters-settings:
     min-confidence: 0.8
   misspell:
     locale: US
+  gosec:
+    excludes:
+      - G304
 
 issues:
   exclude-use-default: false

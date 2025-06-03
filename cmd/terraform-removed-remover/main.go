@@ -16,13 +16,13 @@ import (
 const Version = "0.0.1"
 
 type Stats struct {
-	FilesProcessed        int
-	FilesModified         int
-	RemovedBlocksRemoved  int
-	StartTime             time.Time
-	EndTime               time.Time
-	DryRun                bool
-	NormalizeWhitespace   bool
+	FilesProcessed       int
+	FilesModified        int
+	RemovedBlocksRemoved int
+	StartTime            time.Time
+	EndTime              time.Time
+	DryRun               bool
+	NormalizeWhitespace  bool
 }
 
 func findTerraformFiles(rootDir string) ([]string, error) {
@@ -67,22 +67,22 @@ func processFile(filePath string, stats *Stats) error {
 	}
 
 	stats.FilesProcessed++
-	
+
 	if !stats.DryRun {
 		formattedContent := hclwrite.Format(file.Bytes())
-		
+
 		if fileModified && stats.NormalizeWhitespace {
 			formattedContent = normalizeConsecutiveNewlines(formattedContent)
 		}
-		
+
 		if fileModified || !bytes.Equal(formattedContent, content) {
 			stats.FilesModified++
-			
+
 			if fileModified {
 				stats.RemovedBlocksRemoved += removedBlocksCount
 			}
-			
-			err = os.WriteFile(filePath, formattedContent, 0644)
+
+			err = os.WriteFile(filePath, formattedContent, 0600)
 			if err != nil {
 				return fmt.Errorf("error writing file %s: %w", filePath, err)
 			}
@@ -97,9 +97,9 @@ func processFile(filePath string, stats *Stats) error {
 
 func normalizeConsecutiveNewlines(content []byte) []byte {
 	contentStr := string(content)
-	
+
 	re := strings.NewReplacer("\n\n\n", "\n\n", "\r\n\r\n\r\n", "\r\n\r\n")
-	
+
 	for {
 		newContent := re.Replace(contentStr)
 		if newContent == contentStr {
@@ -107,15 +107,15 @@ func normalizeConsecutiveNewlines(content []byte) []byte {
 		}
 		contentStr = newContent
 	}
-	
+
 	contentStr = strings.ReplaceAll(contentStr, "\r\n", "\n")
-	
+
 	contentStr = strings.TrimRight(contentStr, "\n") + "\n"
-	
+
 	if bytes.Contains(content, []byte("\r\n")) {
 		contentStr = strings.ReplaceAll(contentStr, "\n", "\r\n")
 	}
-	
+
 	return []byte(contentStr)
 }
 
@@ -139,45 +139,45 @@ func main() {
 	dryRunFlag := flag.Bool("dry-run", false, "Run without modifying files")
 	verboseFlag := flag.Bool("verbose", false, "Enable verbose output")
 	normalizeFlag := flag.Bool("normalize-whitespace", false, "Normalize whitespace after removing removed blocks")
-	
+
 	flag.Usage = printUsage
-	
+
 	flag.Parse()
-	
+
 	if *helpFlag {
 		printUsage()
 		os.Exit(0)
 	}
-	
+
 	if *versionFlag {
 		fmt.Printf("Terraform Removed Block Remover v%s\n", Version)
 		os.Exit(0)
 	}
-	
+
 	args := flag.Args()
 	rootDir := "."
-	
+
 	if len(args) > 0 {
 		rootDir = args[0]
 	}
-	
+
 	info, err := os.Stat(rootDir)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
-	
+
 	if !info.IsDir() {
 		fmt.Printf("Error: %s is not a directory\n", rootDir)
 		os.Exit(1)
 	}
-	
+
 	stats := Stats{
 		StartTime:           time.Now(),
 		DryRun:              *dryRunFlag,
 		NormalizeWhitespace: *normalizeFlag,
 	}
-	
+
 	fmt.Printf("Scanning directory: %s\n", rootDir)
 	files, err := findTerraformFiles(rootDir)
 	if err != nil {
@@ -185,7 +185,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Found %d Terraform files\n", len(files))
-	
+
 	for _, file := range files {
 		if *verboseFlag {
 			fmt.Printf("Processing: %s\n", file)
@@ -195,10 +195,10 @@ func main() {
 			fmt.Printf("Error processing %s: %s\n", file, err)
 		}
 	}
-	
+
 	stats.EndTime = time.Now()
 	duration := stats.EndTime.Sub(stats.StartTime)
-	
+
 	fmt.Printf("\nStatistics:\n")
 	if stats.DryRun {
 		fmt.Println("DRY RUN MODE: No files were modified")

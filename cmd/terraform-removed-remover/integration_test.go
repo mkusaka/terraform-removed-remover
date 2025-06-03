@@ -13,7 +13,10 @@ func TestIntegrationBasicUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	mainTf := filepath.Join(tempDir, "main.tf")
 	mainContent := `
@@ -37,13 +40,13 @@ resource "aws_s3_bucket" "data" {
   bucket = "my-bucket"
 }
 `
-	err = os.WriteFile(mainTf, []byte(mainContent), 0644)
+	err = os.WriteFile(mainTf, []byte(mainContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write main.tf: %v", err)
 	}
 
 	moduleDir := filepath.Join(tempDir, "modules", "networking")
-	err = os.MkdirAll(moduleDir, 0755)
+	err = os.MkdirAll(moduleDir, 0750)
 	if err != nil {
 		t.Fatalf("Failed to create module directory: %v", err)
 	}
@@ -68,7 +71,7 @@ removed {
   }
 }
 `
-	err = os.WriteFile(vpcTf, []byte(vpcContent), 0644)
+	err = os.WriteFile(vpcTf, []byte(vpcContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write vpc.tf: %v", err)
 	}
@@ -88,9 +91,9 @@ removed {
 	}
 
 	for _, file := range files {
-		err := processFile(file, &stats)
-		if err != nil {
-			t.Fatalf("processFile failed for %s: %v", file, err)
+		processErr := processFile(file, &stats)
+		if processErr != nil {
+			t.Fatalf("processFile failed for %s: %v", file, processErr)
 		}
 	}
 
@@ -128,7 +131,10 @@ func TestIntegrationDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "test.tf")
 	originalContent := `
@@ -144,7 +150,7 @@ removed {
   }
 }
 `
-	err = os.WriteFile(testFile, []byte(originalContent), 0644)
+	err = os.WriteFile(testFile, []byte(originalContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -160,9 +166,9 @@ removed {
 	}
 
 	for _, file := range files {
-		err := processFile(file, &stats)
-		if err != nil {
-			t.Fatalf("processFile failed for %s: %v", file, err)
+		processErr := processFile(file, &stats)
+		if processErr != nil {
+			t.Fatalf("processFile failed for %s: %v", file, processErr)
 		}
 	}
 
@@ -185,7 +191,10 @@ func TestIntegrationEmptyDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	stats := Stats{
 		StartTime: time.Now(),
@@ -201,9 +210,9 @@ func TestIntegrationEmptyDirectory(t *testing.T) {
 	}
 
 	for _, file := range files {
-		err := processFile(file, &stats)
-		if err != nil {
-			t.Fatalf("processFile failed for %s: %v", file, err)
+		processErr := processFile(file, &stats)
+		if processErr != nil {
+			t.Fatalf("processFile failed for %s: %v", file, processErr)
 		}
 	}
 
@@ -220,7 +229,10 @@ func TestIntegrationNoRemovedBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "clean.tf")
 	content := `
@@ -233,7 +245,7 @@ resource "aws_s3_bucket" "data" {
   bucket = "my-bucket"
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -248,9 +260,9 @@ resource "aws_s3_bucket" "data" {
 	}
 
 	for _, file := range files {
-		err := processFile(file, &stats)
-		if err != nil {
-			t.Fatalf("processFile failed for %s: %v", file, err)
+		processErr := processFile(file, &stats)
+		if processErr != nil {
+			t.Fatalf("processFile failed for %s: %v", file, processErr)
 		}
 	}
 

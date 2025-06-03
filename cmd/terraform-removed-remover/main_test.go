@@ -14,7 +14,10 @@ func TestFindTerraformFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFiles := []string{
 		filepath.Join(tempDir, "main.tf"),
@@ -24,19 +27,19 @@ func TestFindTerraformFiles(t *testing.T) {
 		filepath.Join(tempDir, "not-terraform.txt"),
 	}
 
-	if err := os.MkdirAll(filepath.Join(tempDir, "nested", "deep"), 0755); err != nil {
-		t.Fatalf("Failed to create nested directories: %v", err)
+	if mkdirErr := os.MkdirAll(filepath.Join(tempDir, "nested", "deep"), 0750); mkdirErr != nil {
+		t.Fatalf("Failed to create nested directories: %v", mkdirErr)
 	}
 
 	for _, file := range testFiles {
 		dir := filepath.Dir(file)
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				t.Fatalf("Failed to create directory %s: %v", dir, err)
+		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+			if mkdirErr := os.MkdirAll(dir, 0750); mkdirErr != nil {
+				t.Fatalf("Failed to create directory %s: %v", dir, mkdirErr)
 			}
 		}
-		if err := os.WriteFile(file, []byte("test content"), 0644); err != nil {
-			t.Fatalf("Failed to write file %s: %v", file, err)
+		if writeErr := os.WriteFile(file, []byte("test content"), 0600); writeErr != nil {
+			t.Fatalf("Failed to write file %s: %v", file, writeErr)
 		}
 	}
 
@@ -60,7 +63,10 @@ func TestProcessFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "test.tf")
 	content := `
@@ -87,7 +93,7 @@ removed {
   }
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -125,7 +131,7 @@ removed {
 	}
 
 	invalidFile := filepath.Join(tempDir, "invalid.tf")
-	err = os.WriteFile(invalidFile, []byte("this is not valid HCL"), 0644)
+	err = os.WriteFile(invalidFile, []byte("this is not valid HCL"), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write invalid file: %v", err)
 	}
@@ -134,7 +140,7 @@ removed {
 	if err == nil {
 		t.Errorf("Expected error for invalid HCL, but got nil")
 	}
-	
+
 	unformattedFile := filepath.Join(tempDir, "unformatted.tf")
 	unformattedContent := `
 resource "aws_instance" "web" {
@@ -142,7 +148,7 @@ ami = "ami-123456"
   instance_type   =     "t2.micro"
 }
 `
-	err = os.WriteFile(unformattedFile, []byte(unformattedContent), 0644)
+	err = os.WriteFile(unformattedFile, []byte(unformattedContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write unformatted file: %v", err)
 	}
@@ -163,7 +169,7 @@ ami = "ami-123456"
 
 	formattedString := string(formattedContent)
 	t.Logf("Formatted content: %s", formattedString)
-	
+
 	if !strings.Contains(formattedString, "  ami") {
 		t.Errorf("Formatting did not properly indent attributes")
 	}
@@ -177,7 +183,10 @@ func TestMainFunction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "main.tf")
 	content := `
@@ -193,32 +202,32 @@ removed {
   }
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
 	os.Args = []string{"cmd", "-dry-run=false", tempDir}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	
+
 	stats := Stats{
 		StartTime: time.Now(),
 	}
-	
+
 	files, err := findTerraformFiles(tempDir)
 	if err != nil {
 		t.Fatalf("findTerraformFiles failed: %v", err)
 	}
-	
+
 	if len(files) != 1 {
 		t.Errorf("Expected to find 1 .tf file, but found %d", len(files))
 	}
-	
+
 	err = processFile(files[0], &stats)
 	if err != nil {
 		t.Fatalf("processFile failed: %v", err)
 	}
-	
+
 	if stats.RemovedBlocksRemoved != 1 {
 		t.Errorf("Expected RemovedBlocksRemoved to be 1, but got %d", stats.RemovedBlocksRemoved)
 	}
@@ -227,17 +236,20 @@ removed {
 func TestFlagHandling(t *testing.T) {
 	oldArgs := os.Args
 	oldFlagCommandLine := flag.CommandLine
-	defer func() { 
-		os.Args = oldArgs 
+	defer func() {
+		os.Args = oldArgs
 		flag.CommandLine = oldFlagCommandLine
 	}()
-	
+
 	tempDir, err := os.MkdirTemp("", "terraform-flag-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
-	
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
+
 	testFile := filepath.Join(tempDir, "test.tf")
 	content := `
 resource "aws_instance" "web" {
@@ -252,29 +264,29 @@ removed {
   }
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
-	
+
 	os.Args = []string{"cmd", "-dry-run", tempDir}
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	
+
 	stats := Stats{
 		StartTime: time.Now(),
 		DryRun:    true,
 	}
-	
+
 	err = processFile(testFile, &stats)
 	if err != nil {
 		t.Fatalf("processFile failed: %v", err)
 	}
-	
+
 	modifiedContent, err := os.ReadFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to read file after dry run: %v", err)
 	}
-	
+
 	if string(modifiedContent) != content {
 		t.Errorf("Dry run mode modified the file, but it shouldn't have")
 	}
@@ -285,7 +297,10 @@ func TestConsecutiveRemovedBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "consecutive_removed.tf")
 	content := `
@@ -319,7 +334,7 @@ resource "aws_s3_bucket" "data" {
   bucket = "my-bucket"
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -347,7 +362,7 @@ resource "aws_s3_bucket" "data" {
 	lines := strings.Split(string(modifiedContent), "\n")
 	consecutiveEmptyLines := 0
 	maxConsecutiveEmptyLines := 0
-	
+
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			consecutiveEmptyLines++
@@ -358,7 +373,7 @@ resource "aws_s3_bucket" "data" {
 			consecutiveEmptyLines = 0
 		}
 	}
-	
+
 	if maxConsecutiveEmptyLines > 2 {
 		t.Errorf("File contains %d consecutive empty lines, expected at most 1", maxConsecutiveEmptyLines-1)
 	}
@@ -369,7 +384,10 @@ func TestWhitespaceNormalizationFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	content := `
 resource "aws_instance" "web" {
@@ -404,7 +422,7 @@ resource "aws_s3_bucket" "data" {
 `
 
 	testFileDisabled := filepath.Join(tempDir, "normalization_disabled.tf")
-	err = os.WriteFile(testFileDisabled, []byte(content), 0644)
+	err = os.WriteFile(testFileDisabled, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -426,7 +444,7 @@ resource "aws_s3_bucket" "data" {
 	t.Logf("Content with normalization disabled: %s", string(disabledContent))
 
 	testFileEnabled := filepath.Join(tempDir, "normalization_enabled.tf")
-	err = os.WriteFile(testFileEnabled, []byte(content), 0644)
+	err = os.WriteFile(testFileEnabled, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -450,7 +468,7 @@ resource "aws_s3_bucket" "data" {
 	disabledLines := strings.Split(string(disabledContent), "\n")
 	disabledConsecutiveEmptyLines := 0
 	disabledMaxConsecutiveEmptyLines := 0
-	
+
 	for _, line := range disabledLines {
 		if strings.TrimSpace(line) == "" {
 			disabledConsecutiveEmptyLines++
@@ -461,11 +479,11 @@ resource "aws_s3_bucket" "data" {
 			disabledConsecutiveEmptyLines = 0
 		}
 	}
-	
+
 	enabledLines := strings.Split(string(enabledContent), "\n")
 	enabledConsecutiveEmptyLines := 0
 	enabledMaxConsecutiveEmptyLines := 0
-	
+
 	for _, line := range enabledLines {
 		if strings.TrimSpace(line) == "" {
 			enabledConsecutiveEmptyLines++
@@ -476,14 +494,14 @@ resource "aws_s3_bucket" "data" {
 			enabledConsecutiveEmptyLines = 0
 		}
 	}
-	
+
 	if disabledMaxConsecutiveEmptyLines <= enabledMaxConsecutiveEmptyLines {
 		t.Errorf("Expected more consecutive empty lines with normalization disabled, but got %d (disabled) vs %d (enabled)",
 			disabledMaxConsecutiveEmptyLines, enabledMaxConsecutiveEmptyLines)
 	}
-	
+
 	if enabledMaxConsecutiveEmptyLines > 2 {
-		t.Errorf("With normalization enabled, file contains %d consecutive empty lines, expected at most 1", 
+		t.Errorf("With normalization enabled, file contains %d consecutive empty lines, expected at most 1",
 			enabledMaxConsecutiveEmptyLines-1)
 	}
 }
@@ -493,7 +511,10 @@ func TestTrailingEmptyLines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+		}
+	}()
 
 	testFile := filepath.Join(tempDir, "trailing_removed.tf")
 	content := `
@@ -508,7 +529,7 @@ removed {
   }
 }
 `
-	err = os.WriteFile(testFile, []byte(content), 0644)
+	err = os.WriteFile(testFile, []byte(content), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
@@ -534,7 +555,7 @@ removed {
 	}
 
 	lines := strings.Split(string(modifiedContent), "\n")
-	
+
 	trailingEmptyLines := 0
 	for i := len(lines) - 1; i >= 0; i-- {
 		if strings.TrimSpace(lines[i]) == "" {
@@ -543,7 +564,7 @@ removed {
 			break
 		}
 	}
-	
+
 	if trailingEmptyLines > 1 {
 		t.Errorf("File contains %d trailing empty lines, expected at most 1", trailingEmptyLines)
 	}

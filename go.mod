@@ -2,7 +2,7 @@ module github.com/mkusaka/terraform-removed-remover
 
 go 1.24
 
-toolchain go1.24.2
+toolchain go1.25.5
 
 require github.com/hashicorp/hcl/v2 v2.23.0
 

@@ -1,5 +1,12 @@
 # Terraform Removed Block Remover
 
+> [!WARNING]
+> This repository is kept for backward compatibility.
+> Please migrate to [`tftidy`](https://github.com/mkusaka/tftidy), which unifies moved/removed/import cleanup.
+>
+> Migration:
+> `terraform-removed-remover [options] [directory]` -> `tftidy --type removed [options] [directory]`
+
 A Go tool that recursively scans Terraform files and removes all `removed` blocks.
 
 ## Overview

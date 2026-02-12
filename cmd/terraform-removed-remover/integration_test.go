@@ -135,7 +135,11 @@ func TestLeadingCommentsPreserved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(testDir)
+	defer func() {
+		if removeErr := os.RemoveAll(testDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
+		}
+	}()
 
 	// Case 1: Comment directly before removed block (no blank line)
 	t.Run("comment_directly_before_removed_block", func(t *testing.T) {

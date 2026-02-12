@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
@@ -51,27 +52,65 @@ func processFile(filePath string, stats *Stats) error {
 		return fmt.Errorf("error reading file %s: %w", filePath, err)
 	}
 
-	file, diags := hclwrite.ParseConfig(content, filePath, hcl.Pos{Line: 1, Column: 1})
+	// Parse with hclsyntax to get block ranges that exclude leading comments
+	syntaxFile, diags := hclsyntax.ParseConfig(content, filePath, hcl.Pos{Line: 1, Column: 1})
 	if diags.HasErrors() {
 		return fmt.Errorf("error parsing %s: %s", filePath, diags.Error())
 	}
 
-	fileModified := false
-	removedBlocksCount := 0
+	syntaxBody, ok := syntaxFile.Body.(*hclsyntax.Body)
+	if !ok {
+		return fmt.Errorf("unexpected body type in %s", filePath)
+	}
 
-	body := file.Body()
-	for _, block := range body.Blocks() {
-		if block.Type() == "removed" {
-			body.RemoveBlock(block)
-			removedBlocksCount++
-			fileModified = true
+	// Collect byte ranges of removed blocks (SrcRange excludes leading comments)
+	type byteRange struct {
+		start, end int
+	}
+	var removedRanges []byteRange
+	for _, block := range syntaxBody.Blocks {
+		if block.Type == "removed" {
+			r := block.Range()
+			removedRanges = append(removedRanges, byteRange{start: r.Start.Byte, end: r.End.Byte})
 		}
 	}
+
+	removedBlocksCount := len(removedRanges)
+	fileModified := removedBlocksCount > 0
 
 	stats.FilesProcessed++
 
 	if !stats.DryRun {
-		formattedContent := hclwrite.Format(file.Bytes())
+		resultContent := content
+		if fileModified {
+			// Remove blocks from content in reverse order to preserve byte offsets
+			result := make([]byte, len(content))
+			copy(result, content)
+
+			for i := len(removedRanges) - 1; i >= 0; i-- {
+				r := removedRanges[i]
+				start := r.start
+				end := r.end
+
+				// Consume leading whitespace on the same line as `removed`
+				for start > 0 && (result[start-1] == ' ' || result[start-1] == '\t') {
+					start--
+				}
+
+				// Consume trailing newline after closing brace
+				for end < len(result) && (result[end] == '\r' || result[end] == '\n') {
+					end++
+					if result[end-1] == '\n' {
+						break
+					}
+				}
+
+				result = append(result[:start], result[end:]...)
+			}
+			resultContent = result
+		}
+
+		formattedContent := hclwrite.Format(resultContent)
 
 		if fileModified && stats.NormalizeWhitespace {
 			formattedContent = normalizeConsecutiveNewlines(formattedContent)

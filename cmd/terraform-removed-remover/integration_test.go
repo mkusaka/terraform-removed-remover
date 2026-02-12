@@ -128,6 +128,184 @@ removed {
 	}
 }
 
+// TestLeadingCommentsPreserved tests that comments preceding removed blocks
+// are NOT removed along with the removed block.
+func TestLeadingCommentsPreserved(t *testing.T) {
+	testDir, err := os.MkdirTemp("", "terraform-comment-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() {
+		if removeErr := os.RemoveAll(testDir); removeErr != nil {
+			_ = removeErr // Ignore cleanup errors in tests
+		}
+	}()
+
+	// Case 1: Comment directly before removed block (no blank line)
+	t.Run("comment_directly_before_removed_block", func(t *testing.T) {
+		filePath := filepath.Join(testDir, "case1.tf")
+		input := `resource "aws_instance" "web" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+
+# This comment describes the resource removal
+removed {
+  from = aws_instance.old
+  lifecycle {
+    destroy = false
+  }
+}
+`
+		if err := os.WriteFile(filePath, []byte(input), 0600); err != nil {
+			t.Fatalf("Failed to write test file: %v", err)
+		}
+
+		stats := Stats{}
+		if err := processFile(filePath, &stats); err != nil {
+			t.Fatalf("processFile failed: %v", err)
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to read modified file: %v", err)
+		}
+
+		result := string(content)
+		t.Logf("Case 1 output:\n%s", result)
+
+		if strings.Contains(result, "removed {") {
+			t.Error("removed block should have been removed")
+		}
+		if !strings.Contains(result, "# This comment describes the resource removal") {
+			t.Error("Leading comment was removed along with the removed block — this is the bug")
+		}
+	})
+
+	// Case 2: Multiple comment lines directly before removed block
+	t.Run("multiple_comments_before_removed_block", func(t *testing.T) {
+		filePath := filepath.Join(testDir, "case2.tf")
+		input := `resource "aws_instance" "web" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+
+# Description of the removal
+# reason: no longer needed
+removed {
+  from = aws_instance.old
+  lifecycle {
+    destroy = false
+  }
+}
+`
+		if err := os.WriteFile(filePath, []byte(input), 0600); err != nil {
+			t.Fatalf("Failed to write test file: %v", err)
+		}
+
+		stats := Stats{}
+		if err := processFile(filePath, &stats); err != nil {
+			t.Fatalf("processFile failed: %v", err)
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to read modified file: %v", err)
+		}
+
+		result := string(content)
+		t.Logf("Case 2 output:\n%s", result)
+
+		if !strings.Contains(result, "# Description of the removal") {
+			t.Error("First comment line was removed along with the removed block")
+		}
+		if !strings.Contains(result, "# reason: no longer needed") {
+			t.Error("Second comment line was removed along with the removed block")
+		}
+	})
+
+	// Case 3: Blank line separates comment from removed block
+	t.Run("comment_separated_by_blank_line", func(t *testing.T) {
+		filePath := filepath.Join(testDir, "case3.tf")
+		input := `resource "aws_instance" "web" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+
+# This comment is separated by a blank line
+
+removed {
+  from = aws_instance.old
+  lifecycle {
+    destroy = false
+  }
+}
+`
+		if err := os.WriteFile(filePath, []byte(input), 0600); err != nil {
+			t.Fatalf("Failed to write test file: %v", err)
+		}
+
+		stats := Stats{}
+		if err := processFile(filePath, &stats); err != nil {
+			t.Fatalf("processFile failed: %v", err)
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to read modified file: %v", err)
+		}
+
+		result := string(content)
+		t.Logf("Case 3 output:\n%s", result)
+
+		if !strings.Contains(result, "# This comment is separated by a blank line") {
+			t.Error("Comment separated by blank line was unexpectedly removed")
+		}
+	})
+
+	// Case 4: Comment belongs to the NEXT resource, not the removed block
+	t.Run("comment_between_removed_and_resource", func(t *testing.T) {
+		filePath := filepath.Join(testDir, "case4.tf")
+		input := `resource "aws_instance" "web" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+
+# Describes the S3 bucket below
+removed {
+  from = aws_instance.old
+  lifecycle {
+    destroy = false
+  }
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = "my-data-bucket"
+}
+`
+		if err := os.WriteFile(filePath, []byte(input), 0600); err != nil {
+			t.Fatalf("Failed to write test file: %v", err)
+		}
+
+		stats := Stats{}
+		if err := processFile(filePath, &stats); err != nil {
+			t.Fatalf("processFile failed: %v", err)
+		}
+
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to read modified file: %v", err)
+		}
+
+		result := string(content)
+		t.Logf("Case 4 output:\n%s", result)
+
+		if !strings.Contains(result, "# Describes the S3 bucket below") {
+			t.Error("Comment that semantically belongs to another resource was removed with the removed block")
+		}
+	})
+}
+
 func TestIntegrationDryRun(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "terraform-dry-run-test")
 	if err != nil {
